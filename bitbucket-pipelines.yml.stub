@@ -1,0 +1,84 @@
+# bitbucket-pipelines.yml
+
+definitions:
+  caches:
+    composer:
+      key:
+        files:
+          - composer.lock
+      path: vendor
+    node:
+      key:
+        files:
+          - package-lock.json
+      path: node_modules
+
+  steps:
+    - step: &npm
+        name: "NPM - Install"
+        image: node:22
+        caches:
+          - node
+        script:
+          - npm install
+        condition:
+          changesets:
+            includePaths:
+              - "package-lock.json"
+    - step: &composer
+        name: "Composer - Install"
+        image: fideloper/fly-laravel:8.3
+        caches:
+          - composer
+        script:
+          - composer install --no-cache --no-interaction --prefer-dist --optimize-autoloader
+        condition:
+          changesets:
+            includePaths:
+              - "composer.lock"
+    - step: &phpunit
+        name: "Run PHPUnit tests"
+        image: fideloper/fly-laravel:8.3
+        caches:
+          - composer
+        script:
+          - composer test
+#    - step: &pint
+#        name: "Pint"
+#        image: fideloper/fly-laravel:8.3
+#        caches:
+#          - composer
+#        script:
+#          - composer install --no-interaction --prefer-dist --optimize-autoloader
+#          - ./vendor/bin/pint -v --preset laravel
+#        artifacts:
+#          - app/**
+#          - config/**
+#          - database/**
+#          - routes/**
+#          - tests/**
+#    - step: &prettier
+#        name: "Prettier"
+#        image: node:20
+#        caches:
+#          - node
+#        script:
+#          - npm install
+#          - npm run prettier:fix
+#        artifacts:
+#          - resources/**
+#    - step: &commit
+#        name: "Commit back to branch"
+#        image: atlassian/default-image:4
+#        script:
+#          - git diff --quiet && git diff --staged --quiet || git commit -a -m "[skip ci] Pint and Prettier" && git push
+
+pipelines:
+  branches:
+    master:
+      - step: *composer
+      - step: *phpunit
+      #      - parallel:
+      #          - step: *pint
+      #          - step: *prettier
+      #      - step: *commit
